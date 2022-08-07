@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Websocket Test</title>
+	</head>
+	<style>
+		body {
+			background-color: black;
+		}
+		#conn {
+			font-size: large;
+			font-weight: bold;
+		}
+
+		.conn {
+			color: aliceblue;
+			font-size: large;
+			font-weight: 700;
+		}
+
+		#user {
+			font-size: large;
+			font-weight: 700;
+		}
+		.chatBox {
+			position: relative;
+			margin-top: 15px;
+			max-width: 800px;
+		}
+
+		.sender {
+			position: relative;
+			font-size: 16px;
+			padding: 8px;
+			border-radius: 5px;
+			background-color: chartreuse;
+			margin: 2px;
+		}
+		.reciever {
+			position: relative;
+			font-size: 16px;
+			padding: 8px;
+			border-radius: 5px;
+			margin: 2px;
+			background-color: darkcyan;
+			color: white;
+		}
+
+		.container {
+			position: relative;
+			display: flex;
+			justify-content: flex-start;
+			align-items: center;
+			flex-direction: column;
+			min-width: 100%;
+		}
+		.frm {
+			position: absolute;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			bottom: 25px;
+			left: 0;
+			right: 0;
+		}
+
+		#sbmt {
+			margin-left: 8px;
+			padding: 2px;
+		}
+		#inpt {
+			min-width: 400px;
+		}
+	</style>
+	<body>
+		<div class="container">
+			<p class="conn">Connection : <span id="conn"></span></p>
+			<p class="conn" style="margin-top: 0">User : <span id="user"></span></p>
+			<div class="chatBox" id="cb"></div>
+		</div>
+		<form class="frm" onsubmit="handleSubmit(event)">
+			<input id="inpt" />
+			<button id="sbmt" type="submit">Submit</button>
+		</form>
+	</body>
+	<script defer>
+		const username = localStorage.getItem("user") || "";
+		console.log(username);
+		const socket = new WebSocket(`ws://localhost:4000/?user=${username}`);
+		const chatBox = document.getElementById("cb");
+		socket.addEventListener("open", (e) => {
+			const conn = document.getElementById("conn");
+			conn.innerText = "Connected";
+			conn.style.color = "green";
+			if (username) {
+				socket.send(JSON.stringify({ type: "login", userId: username }));
+			} else {
+				socket.send(JSON.stringify({ type: "login" }));
+			}
+		});
+		socket.addEventListener("error", (e) => {});
+
+		socket.addEventListener("message", (e) => {
+			const { type, ...rest } = JSON.parse(e.data);
+			switch (type) {
+				case "login":
+					{
+						console.log("User", localStorage.getItem("user"));
+						const user = document.getElementById("user");
+						if (!username && rest.userId) {
+							localStorage.setItem("user", rest.userId);
+						}
+						user.innerText = localStorage.getItem("user");
+						user.style.color = "green";
+					}
+					break;
+				case "chat":
+					{
+						createChat(rest);
+					}
+					break;
+			}
+		});
+
+		function handleSubmit(e) {
+			e.preventDefault();
+			const data = e.target[0].value;
+			e.target.reset();
+			createChat({ data }, true);
+			socket.send(JSON.stringify({ type: "chat", data }));
+		}
+
+		function createChat(message, self = false) {
+			const messageContainer = document.createElement("div");
+			if (self) {
+				messageContainer.className = "sender";
+			} else {
+				messageContainer.className = "reciever";
+			}
+			const sender = self ? "You" : message.userId;
+			messageContainer.innerText = `${sender}: ${message.data}`;
+			chatBox.appendChild(messageContainer);
+		}
+	</script>
+</html>
